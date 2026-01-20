@@ -1,0 +1,227 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Navbar from '../../components/Navbar.astro';
+import Footer from '../../components/Footer.astro';
+---
+
+<BaseLayout title="Panel de Administración">
+    <Navbar />
+    
+    <main class="container admin-container">
+        <header class="admin-header">
+            <h1>Gestión de Productos</h1>
+            <button id="show-add-modal">Añadir Producto</button>
+        </header>
+
+        <section class="admin-content card">
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Imagen</th>
+                        <th>Nombre</th>
+                        <th>Precio</th>
+                        <th>Stock</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="admin-products-list">
+                    <!-- Products will be listed here -->
+                </tbody>
+            </table>
+        </section>
+
+        <!-- Modal Simple (Hidden by default) -->
+        <div id="product-modal" class="modal" style="display:none;">
+            <div class="modal-content card">
+                <h2 id="modal-title">Añadir Producto</h2>
+                <form id="product-form">
+                    <input type="hidden" id="prod-id" />
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Nombre</label>
+                            <input type="text" id="prod-name" required />
+                        </div>
+                        <div class="form-group">
+                            <label>Precio</label>
+                            <input type="number" step="0.01" id="prod-price" required />
+                        </div>
+                        <div class="form-group">
+                            <label>Stock</label>
+                            <input type="number" id="prod-stock" required />
+                        </div>
+                        <div class="form-group">
+                            <label>Categoría</label>
+                            <select id="prod-category">
+                                <option value="1">Gama Alta</option>
+                                <option value="2">Gama Media</option>
+                                <option value="3">Gama Baja</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Descripción</label>
+                        <textarea id="prod-desc" rows="3"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>URL Imagen</label>
+                        <input type="text" id="prod-img" placeholder="https://..." />
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="prod-liqd" /> Liquidación
+                        </label>
+                    </div>
+                    <div class="form-group">
+                        <label>Descuento (%)</label>
+                        <input type="number" id="prod-discount" value="0" />
+                    </div>
+                    <div class="btn-row">
+                        <button type="submit" id="save-btn">Guardar</button>
+                        <button type="button" id="close-modal" class="alt-btn">Cancelar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </main>
+
+    <Footer />
+
+    <script>
+        const token = localStorage.getItem('token');
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+
+        if (!token || user.role !== 'admin') {
+            window.location.href = '/login';
+        }
+
+        async function loadAdminProducts() {
+            try {
+                const res = await fetch('http://localhost:3000/api/products');
+                const products = await res.json();
+                const list = document.getElementById('admin-products-list');
+                if (!list) return;
+
+                list.innerHTML = products.map(p => `
+                    <tr>
+                        <td>${p.id}</td>
+                        <td><img src="${p.image_url || 'https://via.placeholder.com/50'}" width="40" height="40" style="object-fit:cover;"></td>
+                        <td>${p.name}</td>
+                        <td>$${p.price}</td>
+                        <td>${p.stock}</td>
+                        <td>
+                            <button class="edit-btn" data-json='${JSON.stringify(p)}'>Editar</button>
+                            <button class="delete-btn" data-id="${p.id}" style="background:#e74c3c;">Eliminar</button>
+                        </td>
+                    </tr>
+                `).join('');
+
+                addEventListeners();
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        function addEventListeners() {
+            document.querySelectorAll('.edit-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const product = JSON.parse((e.target as HTMLElement).dataset.json!);
+                    showModal(product);
+                });
+            });
+
+            document.querySelectorAll('.delete-btn').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    if (!confirm('¿Seguro que deseas eliminar este producto?')) return;
+                    const id = (e.target as HTMLElement).dataset.id;
+                    await fetch(`http://localhost:3000/api/products/${id}`, {
+                        method: 'DELETE',
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    loadAdminProducts();
+                });
+            });
+        }
+
+        function showModal(product = null) {
+            const modal = document.getElementById('product-modal');
+            const title = document.getElementById('modal-title');
+            if (!modal || !title) return;
+
+            modal.style.display = 'flex';
+            if (product) {
+                title.innerText = 'Editar Producto';
+                (document.getElementById('prod-id') as HTMLInputElement).value = product.id;
+                (document.getElementById('prod-name') as HTMLInputElement).value = product.name;
+                (document.getElementById('prod-price') as HTMLInputElement).value = product.price;
+                (document.getElementById('prod-stock') as HTMLInputElement).value = product.stock;
+                (document.getElementById('prod-category') as HTMLSelectElement).value = product.category_id;
+                (document.getElementById('prod-desc') as HTMLTextAreaElement).value = product.description;
+                (document.getElementById('prod-img') as HTMLInputElement).value = product.image_url || '';
+                (document.getElementById('prod-liqd') as HTMLInputElement).checked = product.is_liquidation;
+                (document.getElementById('prod-discount') as HTMLInputElement).value = product.discount_percentage;
+            } else {
+                title.innerText = 'Añadir Producto';
+                (document.getElementById('product-form') as HTMLFormElement).reset();
+                (document.getElementById('prod-id') as HTMLInputElement).value = '';
+            }
+        }
+
+        document.getElementById('show-add-modal')?.addEventListener('click', () => showModal());
+        document.getElementById('close-modal')?.addEventListener('click', () => {
+            const modal = document.getElementById('product-modal');
+            if (modal) modal.style.display = 'none';
+        });
+
+        document.getElementById('product-form')?.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const id = (document.getElementById('prod-id') as HTMLInputElement).value;
+            const data = {
+                name: (document.getElementById('prod-name') as HTMLInputElement).value,
+                price: parseFloat((document.getElementById('prod-price') as HTMLInputElement).value),
+                stock: parseInt((document.getElementById('prod-stock') as HTMLInputElement).value),
+                category_id: parseInt((document.getElementById('prod-category') as HTMLSelectElement).value),
+                description: (document.getElementById('prod-desc') as HTMLTextAreaElement).value,
+                image_url: (document.getElementById('prod-img') as HTMLInputElement).value,
+                is_liquidation: (document.getElementById('prod-liqd') as HTMLInputElement).checked,
+                discount_percentage: parseInt((document.getElementById('prod-discount') as HTMLInputElement).value)
+            };
+
+            const method = id ? 'PUT' : 'POST';
+            const url = id ? `http://localhost:3000/api/products/${id}` : 'http://localhost:3000/api/products';
+
+            const res = await fetch(url, {
+                method,
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(data)
+            });
+
+            if (res.ok) {
+                const modal = document.getElementById('product-modal');
+                if (modal) modal.style.display = 'none';
+                loadAdminProducts();
+            }
+        });
+
+        loadAdminProducts();
+    </script>
+</BaseLayout>
+
+<style>
+    .admin-container { padding-top: 40px; }
+    .admin-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+    .admin-content { padding: 0; overflow-x: auto; }
+    
+    .admin-table { width: 100%; border-collapse: collapse; text-align: left; }
+    .admin-table th, .admin-table td { padding: 15px; border-bottom: 1px solid var(--border-light); }
+    .dark-mode .admin-table th, .dark-mode .admin-table td { border-color: var(--border-dark); }
+    
+    .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: flex; justify-content: center; align-items: center; z-index: 2000; }
+    .modal-content { width: 90%; max-width: 600px; padding: 30px; }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    .btn-row { display: flex; gap: 15px; margin-top: 30px; }
+    .alt-btn { background: #5d6d7e; }
+</style>

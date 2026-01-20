@@ -1,0 +1,92 @@
+---
+const { product } = Astro.props;
+const discountPrice = product.is_liquidation ? (product.price * (1 - product.discount_percentage / 100)).toFixed(2) : product.price;
+---
+<div class="product-card card">
+    <img src={product.image_url || 'https://via.placeholder.com/300'} alt={product.name} class="product-img" />
+    <div class="product-info">
+        <h3 class="product-name">{product.name}</h3>
+        <p class="product-desc">{product.description.substring(0, 80)}...</p>
+        <div class="product-price-row">
+            {product.is_liquidation ? (
+                <div class="price-container">
+                    <span class="original-price">${product.price}</span>
+                    <span class="discount-price">${discountPrice}</span>
+                    <span class="badge">-{product.discount_percentage}%</span>
+                </div>
+            ) : (
+                <span class="price">${product.price}</span>
+            )}
+        </div>
+        <button class="add-to-cart-btn" data-id={product.id} data-name={product.name} data-price={discountPrice}>
+            Añadir al Carrito
+        </button>
+    </div>
+</div>
+
+<style>
+    .product-card {
+        display: flex;
+        flex-direction: column;
+        transition: transform 0.2s;
+    }
+    .product-card:hover {
+        transform: translateY(-5px);
+    }
+    .product-img {
+        width: 100%;
+        height: 200px;
+        object-fit: cover;
+        border-bottom: 1px solid var(--border-light);
+        margin-bottom: 15px;
+    }
+    .dark-mode .product-img {
+        border-color: var(--border-dark);
+    }
+    .product-name {
+        font-size: 1.2rem;
+        margin-bottom: 10px;
+    }
+    .product-desc {
+        font-size: 0.9rem;
+        color: #666;
+        margin-bottom: 15px;
+        height: 60px;
+        overflow: hidden;
+    }
+    .dark-mode .product-desc {
+        color: #aaa;
+    }
+    .product-price-row {
+        margin-bottom: 20px;
+    }
+    .price {
+        font-size: 1.4rem;
+        font-weight: 700;
+        color: var(--primary);
+    }
+    .dark-mode .price { color: #ecf0f1; }
+    
+    .original-price {
+        text-decoration: line-through;
+        font-size: 1rem;
+        color: #999;
+        margin-right: 10px;
+    }
+    .discount-price {
+        font-size: 1.4rem;
+        font-weight: 700;
+        color: #e74c3c;
+    }
+    .badge {
+        background: #e74c3c;
+        color: white;
+        padding: 2px 5px;
+        font-size: 0.7rem;
+        margin-left: 10px;
+        vertical-align: middle;
+    }
+    .add-to-cart-btn {
+        width: 100%;
+    }
+</style>

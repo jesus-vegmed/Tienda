@@ -1,0 +1,124 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Navbar from '../components/Navbar.astro';
+import Footer from '../components/Footer.astro';
+import ProductCard from '../components/ProductCard.astro';
+
+// Fetch featured products from backend during build (or client-side)
+// In a real Astro app, we could do this at build time, 
+// but for a dynamic store, we'll do it on the client for simplicity in this demo.
+---
+
+<BaseLayout title="Inicio">
+    <Navbar />
+    
+    <main class="container">
+        <section class="hero">
+            <h1>Bienvenido a CellStore</h1>
+            <p>Lo último en tecnología móvil con diseño minimalista.</p>
+            <a href="/products" class="btn-link">Ver Catálogo</a>
+        </section>
+
+        <section class="products-section">
+            <h2 class="section-title">Nuestras Liquidadiones</h2>
+            <div id="liquidations-grid" class="grid grid-3">
+                <!-- Will be populated by client JS -->
+                <p>Cargando productos...</p>
+            </div>
+        </section>
+
+        <section class="products-section">
+            <h2 class="section-title">Novedades</h2>
+            <div id="featured-grid" class="grid grid-3">
+                <!-- Will be populated by client JS -->
+            </div>
+        </section>
+    </main>
+
+    <Footer />
+
+    <script>
+        async function loadProducts() {
+            try {
+                const res = await fetch('http://localhost:3000/api/products');
+                const products = await res.json();
+                
+                const liquidationsGrid = document.getElementById('liquidations-grid');
+                const featuredGrid = document.getElementById('featured-grid');
+
+                if (liquidationsGrid) {
+                    const liqs = products.filter(p => p.is_liquidation).slice(0, 3);
+                    liquidationsGrid.innerHTML = liqs.map(p => `
+                        <div class="product-card card">
+                            <img src="${p.image_url || 'https://via.placeholder.com/300'}" alt="${p.name}" class="product-img" style="width:100%; height:200px; object-fit:cover; border-bottom:1px solid var(--border-light); margin-bottom:15px;">
+                            <div class="product-info">
+                                <h3 style="font-size:1.2rem; margin-bottom:10px;">${p.name}</h3>
+                                <p style="font-size:0.9rem; color:#666; margin-bottom:15px;">${p.description.substring(0, 80)}...</p>
+                                <div style="margin-bottom:20px;">
+                                    <span style="text-decoration:line-through; color:#999; margin-right:10px;">$${p.price}</span>
+                                    <span style="font-size:1.4rem; font-weight:700; color:#e74c3c;">$${(p.price * (1 - p.discount_percentage/100)).toFixed(2)}</span>
+                                </div>
+                                <button class="add-to-cart-btn" data-id="${p.id}" data-name="${p.name}" data-price="${(p.price * (1 - p.discount_percentage/100)).toFixed(2)}" style="width:100%;">Añadir al Carrito</button>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+
+                if (featuredGrid) {
+                    const featured = products.filter(p => !p.is_liquidation).slice(0, 3);
+                    featuredGrid.innerHTML = featured.map(p => `
+                        <div class="product-card card">
+                            <img src="${p.image_url || 'https://via.placeholder.com/300'}" alt="${p.name}" class="product-img" style="width:100%; height:200px; object-fit:cover; border-bottom:1px solid var(--border-light); margin-bottom:15px;">
+                            <div class="product-info">
+                                <h3 style="font-size:1.2rem; margin-bottom:10px;">${p.name}</h3>
+                                <p style="font-size:0.9rem; color:#666; margin-bottom:15px;">${p.description.substring(0, 80)}...</p>
+                                <div style="margin-bottom:20px;">
+                                    <span style="font-size:1.4rem; font-weight:700;">$${p.price}</span>
+                                </div>
+                                <button class="add-to-cart-btn" data-id="${p.id}" data-name="${p.name}" data-price="${p.price}" style="width:100%;">Añadir al Carrito</button>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+            } catch (err) {
+                console.error('Error loading products:', err);
+            }
+        }
+
+        loadProducts();
+    </script>
+</BaseLayout>
+
+<style>
+    .hero {
+        padding: 80px 0;
+        text-align: center;
+        background: var(--primary);
+        color: white;
+        margin-bottom: 50px;
+    }
+    .hero h1 { font-size: 3rem; margin-bottom: 10px; }
+    .hero p { font-size: 1.2rem; margin-bottom: 30px; opacity: 0.9; }
+    
+    .btn-link {
+        display: inline-block;
+        background: white;
+        color: var(--primary);
+        padding: 12px 30px;
+        font-weight: 700;
+        text-transform: uppercase;
+        border: 1px solid white;
+    }
+    .btn-link:hover {
+        background: transparent;
+        color: white;
+    }
+    
+    .products-section { margin-bottom: 60px; }
+    .section-title {
+        font-size: 1.8rem;
+        margin-bottom: 30px;
+        border-left: 5px solid var(--primary);
+        padding-left: 15px;
+    }
+</style>

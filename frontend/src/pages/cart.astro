@@ -1,0 +1,223 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Navbar from '../components/Navbar.astro';
+import Footer from '../components/Footer.astro';
+---
+
+<BaseLayout title="Tu Carrito">
+    <Navbar />
+    
+    <main class="container">
+        <header class="page-header">
+            <h1>Tu Carrito de Compras</h1>
+        </header>
+
+        <div class="cart-layout">
+            <div class="cart-items-section">
+                <div id="cart-items-list">
+                    <!-- Dynamic Cart Items -->
+                </div>
+            </div>
+
+            <aside class="checkout-summary card">
+                <h3>Resumen</h3>
+                <div class="summary-row">
+                    <span>Subtotal</span>
+                    <span id="subtotal-val">$0.00</span>
+                </div>
+                <div class="summary-row" id="discount-row" style="display:none; color:#e74c3c;">
+                    <span>Descuento (<span id="coupon-name"></span>)</span>
+                    <span id="discount-val">-$0.00</span>
+                </div>
+                <div class="summary-row total">
+                    <span>Total</span>
+                    <span id="total-val">$0.00</span>
+                </div>
+
+                <div class="coupon-section">
+                    <input type="text" id="coupon-input" placeholder="Código de descuento" />
+                    <button id="apply-coupon-btn">Aplicar</button>
+                    <p id="coupon-msg"></p>
+                </div>
+
+                <div class="payment-section">
+                    <h4>Método de Pago</h4>
+                    <select id="payment-method">
+                        <option value="card">Tarjeta de Crédito (Simulado)</option>
+                        <option value="transfer">Transferencia Bancaria (Simulado)</option>
+                    </select>
+                    <button id="checkout-btn" class="primary-btn">Finalizar Compra</button>
+                    <p id="checkout-msg"></p>
+                </div>
+            </aside>
+        </div>
+    </main>
+
+    <Footer />
+
+    <script>
+        import { cartManager } from '../utils/cart.js';
+
+        let discountPercentage = 0;
+        let appliedCoupon = null;
+
+        function renderCart() {
+            const container = document.getElementById('cart-items-list');
+            const items = cartManager.get();
+            
+            if (!container) return;
+
+            if (items.length === 0) {
+                container.innerHTML = '<p>Tu carrito está vacío.</p>';
+                updateTotals(0);
+                return;
+            }
+
+            container.innerHTML = items.map(item => `
+                <div class="cart-item card">
+                    <div class="item-info">
+                        <h4>${item.name}</h4>
+                        <p>$${item.price} x ${item.quantity}</p>
+                    </div>
+                    <div class="item-actions">
+                        <button class="remove-btn" data-id="${item.id}">Eliminar</button>
+                    </div>
+                </div>
+            `).join('');
+
+            const subtotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+            updateTotals(subtotal);
+
+            // Events
+            document.querySelectorAll('.remove-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const id = (e.target as HTMLElement).dataset.id;
+                    cartManager.remove(parseInt(id!));
+                    renderCart();
+                });
+            });
+        }
+
+        function updateTotals(subtotal) {
+            const discount = subtotal * (discountPercentage / 100);
+            const total = subtotal - discount;
+
+            const subtotalEl = document.getElementById('subtotal-val');
+            const discountEl = document.getElementById('discount-val');
+            const totalEl = document.getElementById('total-val');
+            const discountRow = document.getElementById('discount-row');
+
+            if (subtotalEl) subtotalEl.innerText = `$${subtotal.toFixed(2)}`;
+            if (discountEl) discountEl.innerText = `-$${discount.toFixed(2)}`;
+            if (totalEl) totalEl.innerText = `$${total.toFixed(2)}`;
+            
+            if (discountRow) discountRow.style.display = discount > 0 ? 'flex' : 'none';
+        }
+
+        document.getElementById('apply-coupon-btn')?.addEventListener('click', async () => {
+            const code = (document.getElementById('coupon-input') as HTMLInputElement).value;
+            const msg = document.getElementById('coupon-msg');
+            
+            try {
+                const res = await fetch(`http://localhost:3000/api/coupons/${code}`);
+                if (res.ok) {
+                    const coupon = await res.json();
+                    discountPercentage = coupon.discount_percentage;
+                    appliedCoupon = coupon.code;
+                    const couponNameEl = document.getElementById('coupon-name');
+                    if (couponNameEl) couponNameEl.innerText = coupon.code;
+                    if (msg) {
+                        msg.innerText = `Cupón aplicado: ${coupon.discount_percentage}%`;
+                        msg.style.color = '#27ae60';
+                    }
+                    renderCart();
+                } else {
+                    if (msg) {
+                        msg.innerText = 'Cupón no válido.';
+                        msg.style.color = '#e74c3c';
+                    }
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        });
+
+        document.getElementById('checkout-btn')?.addEventListener('click', async () => {
+            const items = cartManager.get();
+            const token = localStorage.getItem('token');
+            const checkoutMsg = document.getElementById('checkout-msg');
+
+            if (!token) {
+                window.location.href = '/login';
+                return;
+            }
+
+            if (items.length === 0) return;
+
+            const subtotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+            const total = subtotal * (1 - discountPercentage/100);
+
+            try {
+                const res = await fetch('http://localhost:3000/api/orders', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        items,
+                        total,
+                        paymentMethod: (document.getElementById('payment-method') as HTMLSelectElement).value,
+                        couponCode: appliedCoupon
+                    })
+                });
+
+                const data = await res.json();
+                if (res.ok) {
+                    cartManager.clear();
+                    if (checkoutMsg) {
+                        checkoutMsg.innerText = '¡Compra realizada con éxito! (Simulado)';
+                        checkoutMsg.style.color = '#27ae60';
+                    }
+                    setTimeout(() => window.location.href = '/', 3000);
+                } else {
+                    if (checkoutMsg) {
+                        checkoutMsg.innerText = data.message;
+                        checkoutMsg.style.color = '#e74c3c';
+                    }
+                }
+            } catch (err) {
+                if (checkoutMsg) checkoutMsg.innerText = 'Error al procesar el pago.';
+            }
+        });
+
+        renderCart();
+        cartManager.updateBadge();
+    </script>
+</BaseLayout>
+
+<style>
+    .page-header { padding: 40px 0; border-bottom: 2px solid var(--primary); margin-bottom: 40px; }
+    .cart-layout { display: grid; grid-template-columns: 1fr 350px; gap: 40px; }
+    @media (max-width: 768px) { .cart-layout { grid-template-columns: 1fr; } }
+
+    .cart-item { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+    .item-info h4 { margin: 0; }
+    .remove-btn { background: #e74c3c; padding: 5px 12px; font-size: 0.8rem; }
+    
+    .checkout-summary { position: sticky; top: 90px; height: fit-content; }
+    .summary-row { display: flex; justify-content: space-between; margin-bottom: 15px; }
+    .summary-row.total { border-top: 1px solid var(--border-light); padding-top: 15px; font-weight: 800; font-size: 1.3rem; }
+    .dark-mode .summary-row.total { border-color: var(--border-dark); }
+
+    .coupon-section { margin: 25px 0; border-top: 1px dashed var(--border-light); padding-top: 20px; }
+    .dark-mode .coupon-section { border-color: var(--border-dark); }
+    .coupon-section input { margin-bottom: 10px; }
+    #coupon-msg { font-size: 0.85rem; margin-top: 8px; }
+
+    .payment-section { margin-top: 20px; }
+    .payment-section h4 { margin-bottom: 15px; }
+    .payment-section select { margin-bottom: 20px; }
+    .primary-btn { width: 100%; font-size: 1.1rem; }
+    #checkout-msg { margin-top: 15px; font-size: 0.95rem; }
+</style>

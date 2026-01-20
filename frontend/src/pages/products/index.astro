@@ -1,0 +1,132 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Navbar from '../../components/Navbar.astro';
+import Footer from '../../components/Footer.astro';
+---
+
+<BaseLayout title="Catálogo de Productos">
+    <Navbar />
+    
+    <main class="container">
+        <header class="page-header">
+            <h1>Explora nuestros Celulares</h1>
+        </header>
+
+        <div class="shop-layout">
+            <aside class="filters-sidebar card">
+                <h3>Filtros</h3>
+                <div class="filter-group">
+                    <label>Buscar</label>
+                    <input type="text" id="search-input" placeholder="Modelo, marca..." />
+                </div>
+                <div class="filter-group">
+                    <label>Categoría</label>
+                    <select id="category-filter">
+                        <option value="">Todas</option>
+                        <option value="1">Gama Alta</option>
+                        <option value="2">Gama Media</option>
+                        <option value="3">Gama Baja</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>Precio Máximo</label>
+                    <input type="number" id="price-filter" placeholder="Monto max..." />
+                </div>
+                <div class="filter-group">
+                    <label>
+                        <input type="checkbox" id="liquidation-filter" /> Solo Liquidaciones
+                    </label>
+                </div>
+                <button id="apply-filters">Aplicar</button>
+            </aside>
+
+            <div id="products-catalog" class="grid grid-3">
+                <p>Cargando productos...</p>
+            </div>
+        </div>
+    </main>
+
+    <Footer />
+
+    <script>
+        import { cartManager } from '../../utils/cart.js';
+
+        async function fetchProducts() {
+            const search = document.getElementById('search-input')?.value;
+            const category = document.getElementById('category-filter')?.value;
+            const maxPrice = document.getElementById('price-filter')?.value;
+            const liquidation = document.getElementById('liquidation-filter')?.checked;
+
+            let url = new URL('http://localhost:3000/api/products');
+            if (search) url.searchParams.append('search', search);
+            if (category) url.searchParams.append('category', category);
+            if (maxPrice) url.searchParams.append('maxPrice', maxPrice);
+            if (liquidation) url.searchParams.append('liquidation', 'true');
+
+            try {
+                const res = await fetch(url);
+                const products = await res.json();
+                renderProducts(products);
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        function renderProducts(products) {
+            const container = document.getElementById('products-catalog');
+            if (!container) return;
+
+            if (products.length === 0) {
+                container.innerHTML = '<p>No se encontraron productos.</p>';
+                return;
+            }
+
+            container.innerHTML = products.map(p => {
+                const price = p.is_liquidation ? (p.price * (1 - p.discount_percentage/100)).toFixed(2) : p.price;
+                return `
+                <div class="product-card card">
+                    <img src="${p.image_url || 'https://via.placeholder.com/300'}" alt="${p.name}" class="product-img" style="width:100%; height:200px; object-fit:cover; border-bottom:1px solid var(--border-light); margin-bottom:15px;">
+                    <div class="product-info">
+                        <h3 style="font-size:1.2rem; margin-bottom:10px;">${p.name}</h3>
+                        <p style="font-size:0.9rem; color:#666; margin-bottom:15px;">${p.description.substring(0, 80)}...</p>
+                        <div style="margin-bottom:20px;">
+                            ${p.is_liquidation ? `
+                                <span style="text-decoration:line-through; color:#999; margin-right:10px;">$${p.price}</span>
+                                <span style="font-size:1.4rem; font-weight:700; color:#e74c3c;">$${price}</span>
+                            ` : `<span style="font-size:1.4rem; font-weight:700;">$${p.price}</span>`}
+                        </div>
+                        <button class="add-btn" data-id="${p.id}" data-name="${p.name}" data-price="${price}" style="width:100%;">Añadir al Carrito</button>
+                    </div>
+                </div>
+                `;
+            }).join('');
+
+            // Add events to buttons
+            document.querySelectorAll('.add-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const el = e.target;
+                    cartManager.add({
+                        id: parseInt(el.dataset.id),
+                        name: el.dataset.name,
+                        price: parseFloat(el.dataset.price)
+                    });
+                    alert(`${el.dataset.name} añadido al carrito`);
+                });
+            });
+        }
+
+        document.getElementById('apply-filters')?.addEventListener('click', fetchProducts);
+        fetchProducts();
+        cartManager.updateBadge();
+    </script>
+</BaseLayout>
+
+<style>
+    .page-header { padding: 40px 0; border-bottom: 2px solid var(--primary); margin-bottom: 40px; }
+    .shop-layout { display: grid; grid-template-columns: 280px 1fr; gap: 40px; }
+    @media (max-width: 768px) { .shop-layout { grid-template-columns: 1fr; } }
+    
+    .filters-sidebar { height: fit-content; position: sticky; top: 90px; }
+    .filter-group { margin-bottom: 20px; }
+    .filter-group label { display: block; margin-bottom: 8px; font-weight: 600; font-size: 0.9rem; }
+</style>

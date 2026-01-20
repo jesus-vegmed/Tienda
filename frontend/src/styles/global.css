@@ -1,0 +1,95 @@
+:root {
+    --primary: #34495e;
+    --primary-light: #5d6d7e;
+    --bg-light: #ffffff;
+    --text-light: #2c3e50;
+    --border-light: #dcdde1;
+    
+    --bg-dark: #121212;
+    --text-dark: #ecf0f1;
+    --border-dark: #2c3e50;
+    --surface-dark: #1e1e1e;
+
+    --transition: all 0.3s ease;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    border-radius: 0 !important; /* No rounded corners as requested */
+}
+
+body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    line-height: 1.6;
+    background-color: var(--bg-light);
+    color: var(--text-light);
+    transition: var(--transition);
+}
+
+body.dark-mode {
+    background-color: var(--bg-dark);
+    color: var(--text-dark);
+}
+
+a {
+    text-decoration: none;
+    color: inherit;
+}
+
+button {
+    cursor: pointer;
+    border: none;
+    background: var(--primary);
+    color: white;
+    padding: 10px 20px;
+    font-weight: 600;
+    transition: var(--transition);
+}
+
+button:hover {
+    background: var(--primary-light);
+}
+
+input, select, textarea {
+    padding: 10px;
+    border: 1px solid var(--border-light);
+    background: transparent;
+    color: inherit;
+    width: 100%;
+}
+
+.dark-mode input, .dark-mode select, .dark-mode textarea {
+    border-color: var(--border-dark);
+    background: var(--surface-dark);
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 20px;
+}
+
+/* Minimalist Card */
+.card {
+    border: 1px solid var(--border-light);
+    padding: 20px;
+    background: white;
+}
+
+.dark-mode .card {
+    border-color: var(--border-dark);
+    background: var(--surface-dark);
+}
+
+/* Grid System */
+.grid {
+    display: grid;
+    gap: 20px;
+}
+
+.grid-3 { grid-template-columns: repeat(3, 1fr); }
+@media (max-width: 768px) {
+    .grid-3 { grid-template-columns: 1fr; }
+}

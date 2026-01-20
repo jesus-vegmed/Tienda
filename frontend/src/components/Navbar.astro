@@ -1,0 +1,89 @@
+---
+---
+<nav class="navbar">
+    <div class="container nav-content">
+        <a href="/" class="logo">CELL<span>STORE</span></a>
+        
+        <div class="nav-links">
+            <a href="/">Inicio</a>
+            <a href="/products">Productos</a>
+            <a href="/cart" class="cart-link">Carrito <span id="cart-count">0</span></a>
+            <div id="auth-links">
+                <a href="/login" id="login-btn">Login</a>
+            </div>
+            <button id="theme-toggle" aria-label="Cambiar tema">Moscuro</button>
+        </div>
+    </div>
+</nav>
+
+<script>
+    // Theme Toggle Logic
+    const themeBtn = document.getElementById('theme-toggle');
+    themeBtn?.addEventListener('click', () => {
+        document.body.classList.toggle('dark-mode');
+        const isDark = document.body.classList.contains('dark-mode');
+        localStorage.setItem('theme', isDark ? 'dark' : 'light');
+    });
+
+    // Simple Check for Admin/Auth
+    const authLinks = document.getElementById('auth-links');
+    const userJson = localStorage.getItem('user');
+    if (userJson) {
+        const user = JSON.parse(userJson);
+        if (authLinks) {
+            authLinks.innerHTML = `
+                ${user.role === 'admin' ? '<a href="/admin">Admin</a>' : ''}
+                <button id="logout-btn" style="background:transparent; color:inherit; padding: 0; font-size: 1rem; font-weight: 400;">Cerrar Sesion</button>
+            `;
+            document.getElementById('logout-btn')?.addEventListener('click', () => {
+                localStorage.removeItem('token');
+                localStorage.removeItem('user');
+                window.location.href = '/';
+            });
+        }
+    }
+</script>
+
+<style>
+    .navbar {
+        height: 70px;
+        display: flex;
+        align-items: center;
+        border-bottom: 1px solid var(--border-light);
+        position: sticky;
+        top: 0;
+        background: inherit;
+        z-index: 1000;
+    }
+    .dark-mode .navbar {
+        border-color: var(--border-dark);
+    }
+    .nav-content {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        width: 100%;
+    }
+    .logo {
+        font-size: 1.5rem;
+        font-weight: 800;
+        letter-spacing: -1px;
+    }
+    .logo span {
+        color: var(--primary-light);
+    }
+    .nav-links {
+        display: flex;
+        gap: 25px;
+        align-items: center;
+    }
+    .nav-links a:hover {
+        color: var(--primary-light);
+    }
+    #cart-count {
+        background: var(--primary);
+        color: white;
+        padding: 2px 6px;
+        font-size: 0.75rem;
+    }
+</style>
